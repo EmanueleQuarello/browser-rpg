@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: browser-rpg-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --include=dev && npm run db:generate -w @browser-rpg/api
+    startCommand: npm run start -w @browser-rpg/api
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+.env
+*.db
+*.db-journal
+apps/api/data
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+.DS_Store
+*.log
+.vite
+tsconfig.tsbuildinfo
+.vercel
+.wrangler

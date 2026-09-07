@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  createdAt    DateTime    @default(now())
+  adventures   Adventure[]
+  savegames    Savegame[]
+}
+
+model Adventure {
+  id          String     @id @default(cuid())
+  ownerId     String
+  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title       String
+  slug        String?    @unique
+  publishedAt DateTime?
+  packJson    String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  assets      Asset[]
+  savegames   Savegame[]
+}
+
+model Asset {
+  id          String    @id @default(cuid())
+  adventureId String
+  adventure   Adventure @relation(fields: [adventureId], references: [id], onDelete: Cascade)
+  filename    String
+  mime        String
+  path        String
+  originalName String
+  createdAt   DateTime  @default(now())
+}
+
+model Savegame {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adventureId String
+  adventure   Adventure @relation(fields: [adventureId], references: [id], onDelete: Cascade)
+  stateJson   String
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, adventureId])
+}

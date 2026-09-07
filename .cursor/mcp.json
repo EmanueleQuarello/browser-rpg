@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "vercel": {
+      "url": "https://mcp.vercel.com"
+    },
+    "render": {
+      "url": "https://mcp.render.com/mcp"
+    },
+    "Neon": {
+      "url": "https://mcp.neon.tech/mcp"
+    },
+    "cloudflare": {
+      "url": "https://mcp.cloudflare.com/mcp"
+    },
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp"
+    }
+  }
+}
