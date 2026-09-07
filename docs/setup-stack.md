@@ -36,17 +36,15 @@ Limite Hobby Vercel: **100 GB/mese**, uso personale. I binari (PNG/audio) **non*
 
 **Obiettivo:** repo sul tuo account GitHub e Cloud Agents/Bugbot abilitati.
 
-1. Crea un account [GitHub Free](https://github.com/signup) se non ce l’hai.
-2. Dalla root del progetto (se il remote manca ancora):
+Il codice è già su **https://github.com/EmanueleQuarello/browser-rpg** (branch `main`). Se stai su un altro account, fai fork o crea un repo nuovo.
+
+1. Account [GitHub Free](https://github.com/signup) se non ce l’hai (qui è già `EmanueleQuarello`).
+2. Se il remote manca ancora su un clone fresco:
 
    ```bash
-   git init
-   git add .
-   git commit -m "chore: initial commit"
-   gh repo create browser-rpg --public --source=. --remote=origin --push
+   git remote add origin https://github.com/EmanueleQuarello/browser-rpg.git
+   git push -u origin main
    ```
-
-   In alternativa: GitHub → **New repository** → push con le istruzioni mostrate.
 3. In Cursor: **Settings → Cursor Settings → Integrations → GitHub** → connetti l’account e autorizza il repo `browser-rpg`.
 4. Abilita **Cloud Agents** e **Bugbot** sullo stesso repo (stessa schermata Integrations / dashboard Cursor).
 
