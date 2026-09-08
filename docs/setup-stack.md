@@ -1,183 +1,245 @@
 # Setup stack (Vercel + Render + Neon + R2)
 
-Runbook per pubblicare Browser RPG su piani gratuiti, con Cursor collegato a ogni servizio.
-Segui le sezioni **in ordine**. Non incollare segreti in git: solo nei dashboard (Vercel, Render, Neon, …).
+## Sei qui (8 settembre 2026)
 
-Stack:
+Iscrizioni fatte: **Vercel, Render, Neon**. Push su `main` per sbloccare il build Vercel (`vite build`) e Prisma Postgres su Render. URL: `https://browser-rpg-snowy.vercel.app` e `https://browser-rpg-api.onrender.com`. Cancella il progetto Vercel **browser-rpg-api** se esiste (l’API è solo Render).
+
+**Non fare ora:** Cloudflare R2, Sentry, Resend, altri MCP. Servono dopo (o mai, per l’alpha).
+
+**Prossimo passo unico:** importare il repo GitHub su Vercel (Hobby), *poi* creare il Web Service su Render. Dettagli sotto in «Cosa fare adesso».
+
+---
+
+Runbook aggiornato a **settembre 2026** (Cursor Customize, Origin, Vercel for Origin).
+Segui le sezioni **in ordine**. Non incollare segreti in git: solo nei dashboard.
+
+## Perché GitHub resta la fonte di verità (e Origin non cambia le carte)
+
+Cursor ha un forge proprio: **Origin** (`origin.cursor.com`, browse su [cursor.com/codebase](https://cursor.com/codebase)). Non sostituisce GitHub **per questo progetto**, per quattro motivi documentati:
+
+| Vincolo | Dettaglio |
+| --- | --- |
+| Piano Cursor | Origin è su **Pro / Teams / Enterprise**, non sul piano Free |
+| Visibilità | I repo Origin sono **sempre privati** (Internal o grant espliciti). Niente clone anonimo, niente Actions pubbliche |
+| Vercel Hobby | [Vercel for Origin](https://vercel.com/docs/git/vercel-for-origin): *«All Origin repositories are private and cannot be deployed from a Vercel Hobby team.»* |
+| Render | Non è tra le Origin Apps (solo Vercel, Depot, Buildkite). Render importa da GitHub |
+
+Quindi: **GitHub pubblico + Vercel Hobby + Render Free** resta lo stack gratis. Origin è un **mirror opzionale** (Pro+) per Cloud Agents e PR su `cursor.com/codebase`, con GitHub che resta source of truth.
+
+Non usare **New Project → Continue with Origin** su un team Vercel Hobby: fallisce. Importa il repo GitHub.
+
+---
+
+## Due superfici Cursor (non confonderle)
+
+Nella app **non** esiste più `Settings → Cursor Settings → Integrations`.
+
+| Cosa | Dove | URL |
+| --- | --- | --- |
+| Plugin, MCP, skill, rules | Sidebar **Customize** → **MCPs** / Marketplace | [cursor.com/docs/customize-cursor](https://cursor.com/docs/customize-cursor) |
+| Collegare GitHub / Slack / Linear | **Dashboard web** → **Integrations** | [cursor.com/dashboard](https://cursor.com/dashboard) |
+| Cloud Agents | Dashboard o input agente → **Cloud** | [cursor.com/agents](https://cursor.com/agents) |
+| Bugbot e automazioni | **Automations** | [cursor.com/automations](https://cursor.com/automations) |
+| Repo Origin (opzionale) | Codebase | [cursor.com/codebase](https://cursor.com/codebase) |
+
+GitHub **non** va in `mcp.json`: è l’app nativa sul dashboard.
+
+---
+
+## Stack
 
 | Pezzo | Dove | Piano |
 | --- | --- | --- |
+| Codice + CI | GitHub | Free (repo già pubblico) |
 | SPA Vite + Phaser | Vercel | Hobby (non commerciale) |
-| API Fastify | Render | Free (sleep ~15 min; Starter quando serve always-on) |
-| Database | Neon Postgres in cloud; SQLite solo in locale | Free |
-| Asset pack (tileset, audio) | Cloudflare R2 | Free, egress 0€ |
+| API Fastify | Render | Free (sleep ~15 min) |
+| Database | Neon in cloud; SQLite in locale | Free |
+| Asset pack | Cloudflare R2 | Free, egress 0€ |
 | Errori | Sentry | Developer |
-| Email transazionali | Resend | Free (quando login è pubblico) |
+| Email | Resend | Free (quando il login è pubblico) |
+| Mirror + Cloud Agents (opz.) | Cursor Origin | Solo se hai Cursor **Pro+** |
 
-Limite Hobby Vercel: **100 GB/mese**, uso personale. I binari (PNG/audio) **non** devono passare da Vercel: vanno su R2.
+Limite Hobby: **100 GB/mese**. PNG/audio **non** da Vercel: da R2.
 
 ---
 
 ## 0. Prerequisiti
 
-**Obiettivo:** avere Node e un account email pronti.
+**Obiettivo:** Node e un’email pronti.
 
-1. Installa **Node 20+** (`node -v`).
-2. Usa un’email a cui hai accesso (GitHub, Vercel, Cloudflare, …).
-3. Non serve una carta per questo stack. Non aprire Oracle, Hetzner o UptimeRobot.
-4. In locale: `npm ci` nella root del monorepo, poi `cp apps/api/.env.example apps/api/.env` se manca `.env`.
-5. Avvio locale: `npm run dev` (API `3001`, web `5173`). Login demo: `demo@browser-rpg.local` / `demo1234`.
+1. Node **20+** (`node -v`).
+2. Email per GitHub, Vercel, Cloudflare, Neon, Render.
+3. Niente carta. Niente Oracle, Hetzner, UptimeRobot.
+4. `npm ci` in root; se manca: `cp apps/api/.env.example apps/api/.env`.
+5. `npm run dev` → web `5173`, API `3001`. Demo: `demo@browser-rpg.local` / `demo1234`.
 
 **Fatto quando:** `http://127.0.0.1:5173/play/demo` carica e `/api/health` risponde `{ "ok": true }`.
 
 ---
 
-## 1. GitHub + Cursor
+## 1. GitHub (obbligatorio) + Cursor dashboard
 
-**Obiettivo:** repo sul tuo account GitHub e Cloud Agents/Bugbot abilitati.
+**Obiettivo:** source of truth su GitHub; Cloud Agents/Bugbot sul **dashboard**, non in Customize.
 
-Il codice è già su **https://github.com/EmanueleQuarello/browser-rpg** (branch `main`). Se stai su un altro account, fai fork o crea un repo nuovo.
+Repo già esistente: **https://github.com/EmanueleQuarello/browser-rpg** (`main`).
 
-1. Account [GitHub Free](https://github.com/signup) se non ce l’hai (qui è già `EmanueleQuarello`).
-2. Se il remote manca ancora su un clone fresco:
+1. Account [GitHub Free](https://github.com/signup) se serve (qui: `EmanueleQuarello`).
+2. Clone fresco:
 
    ```bash
    git remote add origin https://github.com/EmanueleQuarello/browser-rpg.git
    git push -u origin main
    ```
-3. In Cursor: **Settings → Cursor Settings → Integrations → GitHub** → connetti l’account e autorizza il repo `browser-rpg`.
-4. Abilita **Cloud Agents** e **Bugbot** sullo stesso repo (stessa schermata Integrations / dashboard Cursor).
 
-**Fatto quando:** su github.com vedi il codice e in Cursor Integrations GitHub risulta connesso.
+3. Apri [cursor.com/dashboard](https://cursor.com/dashboard) → **Integrations** → **GitHub** → **Connect**.
+   Installa [github.com/apps/cursor](https://github.com/apps/cursor) e autorizza `browser-rpg` (tutti i repo o solo questo).
+4. **Bugbot:** [cursor.com/automations](https://cursor.com/automations) → Bugbot → abilita sul repo. Funziona su PR **GitHub**, non su PR solo-Origin.
+5. **Cloud Agents:** [cursor.com/agents](https://cursor.com/agents) (o dropdown **Cloud** nell’agente desktop) sullo stesso repo.
 
-**Limite Free:** Actions illimitata se il repo è **pubblico**; se privato, 2000 minuti/mese.
+**Fatto quando:** il dashboard mostra GitHub connesso e il repo è selezionabile per Agents/Bugbot.
+
+**Limite Free GitHub:** Actions illimitata se il repo resta **pubblico**.
 
 ---
 
-## 2. Vercel Hobby (solo frontend)
+## 1b. Origin — solo se hai Cursor Pro+ (opzionale)
 
-**Obiettivo:** SPA su `*.vercel.app`. L’API **non** va su Vercel.
+**Obiettivo:** mirror per browse/agenti su `cursor.com/codebase`. GitHub resta la fonte.
 
-1. Registrati su [vercel.com](https://vercel.com/signup) con GitHub, piano **Hobby**.
-2. **Add New → Project** → importa `browser-rpg`.
-3. Impostazioni progetto:
-   - **Root Directory:** lascia vuoto (root del monorepo). `vercel.json` in root imposta già install/build/output.
-   - **Build Command:** `npm run build -w @browser-rpg/web`
-   - **Output Directory:** `apps/web/dist`
-   - **Install Command:** `npm ci`
-4. Non aggiungere ancora `VITE_API_URL` (lo fai dopo Render). Deploy: otterrai un URL tipo `https://browser-rpg-xxx.vercel.app`. Le chiamate `/api` falliranno finché non c’è Render: è atteso.
-5. Plugin Cursor: Marketplace → **Vercel**, oppure Settings → MCP: deve comparire `vercel` da `.cursor/mcp.json`. Completa il login OAuth.
+Non creare un secondo remote al posto di GitHub. Non staccare `origin` GitHub.
 
-Rewrite SPA: le route `/play/:slug`, `/hub`, `/editor/:id` tornano `index.html`. I file sotto `/assets/` restano statici.
+1. Piano Cursor **Pro, Teams o Enterprise**. Su Free Origin non c’è.
+2. [cursor.com/codebase](https://cursor.com/codebase) → **Get Started** e scegli il namespace (in beta **non si cambia più**).
+3. **Sync from GitHub** → org `EmanueleQuarello` → repo `browser-rpg`. Serve l’app GitHub di Cursor e ruolo admin sul repo.
+4. Per il CLI: `curl -fsSL https://downloads.cursor.com/origin/install.sh | sh` poi `origin auth login`.
+5. Pushes sul remote Origin **synced** passano a GitHub. **Detach from GitHub** rende Origin source of truth: **non farlo** finché usi Hobby + Render.
 
-**Fatto quando:** l’URL Vercel mostra la landing (anche se login/play non parlano ancora con l’API).
+**Fatto quando:** su `cursor.com/codebase/.../browser-rpg` vedi il codice con icona “synced from GitHub”.
 
-**Limite Hobby:** 100 GB transfer/mese; **non commerciale**. Se vendi il prodotto, passa a Pro o a Cloudflare Pages.
+Se Origin non compare, ignora questa sezione: lo stack gratis non ne ha bisogno.
+
+---
+
+## 2. Vercel Hobby (solo frontend, da GitHub)
+
+**Obiettivo:** SPA su `*.vercel.app`. API **non** su Vercel.
+
+1. [vercel.com/signup](https://vercel.com/signup) con **GitHub**, piano **Hobby**.
+2. **Add New → Project** → importa `EmanueleQuarello/browser-rpg`.
+   Non cliccare **Continue with Origin** (Hobby non deploya repo Origin).
+3. Impostazioni:
+   - **Root Directory:** vuoto (monorepo). Vale `vercel.json` in root.
+   - **Build:** `npm run build -w @browser-rpg/web`
+   - **Output:** `apps/web/dist`
+   - **Install:** `npm ci`
+4. Non mettere ancora `VITE_API_URL` (dopo Render). Il primo deploy mostra la landing; `/api` fallisce: normale.
+5. Plugin: sidebar **Customize** → cerca **Vercel** → **Add to Cursor**, OAuth.
+   In `.cursor/mcp.json` c’è già l’URL; in **Customize → MCPs** fai **Connect**.
+
+Rewrite SPA: `/play/:slug`, `/hub`, `/editor/:id` → `index.html`. `/assets/` resta statico.
+
+**Fatto quando:** l’URL Vercel mostra la landing.
+
+**Limite Hobby:** 100 GB/mese, **non commerciale**. Per Origin→Vercel servirebbe un **team Vercel a pagamento**, fuori da questo piano.
 
 ---
 
 ## 3. Neon (Postgres)
 
-**Obiettivo:** `DATABASE_URL` Postgres per Render. In locale resti su SQLite.
+**Obiettivo:** `DATABASE_URL` Postgres per Render. In locale SQLite.
 
-1. Registrati su [neon.tech](https://neon.tech) (piano Free, 0.5 GB).
-2. **Create project** (region EU se l’API è a Frankfurt).
-3. Dashboard → **Connection string** → URI tipo `postgresql://...@...neon.tech/neondb?sslmode=require`. Copiala: va **solo** su Render, non nel repo.
-4. Plugin Cursor: Marketplace → **Neon**, oppure MCP `Neon` in `.cursor/mcp.json` → OAuth.
+1. [neon.tech](https://neon.tech) piano Free (0.5 GB).
+2. **Create project** (EU se Render è Frankfurt).
+3. **Connection string (la password del database).** Nel progetto Neon apri **Dashboard → Connect** (o **Connection details**) e copia l’URI, tipo `postgresql://utente:password@….neon.tech/neondb?sslmode=require`. È `DATABASE_URL`: l’API su Render la userà per leggere/scrivere utenti, avventure e savegame. Conservala (gestore password), **non** metterla nel repo, in `apps/api/.env` committato, né in chat. La incolli più avanti nelle env di Render (sezione 4). In locale il gioco continua a usare SQLite (`file:./dev.db`); questa stringa serve solo al cloud.
+4. **Plugin Neon in Cursor (opzionale, il gioco funziona anche senza).** Serve solo se vuoi che l’agente in questa chat possa ispezionare il DB Neon. Sidebar **Customize → MCPs** (o Marketplace) → **Neon** → **Add to Cursor** / **Connect**. Si apre il browser, accedi con lo stesso account Neon (OAuth = login, non un token da copiare). Se salti questo passo, Neon e Render funzionano lo stesso.
 
-Prima del primo deploy cloud, in `apps/api/prisma/schema.prisma` cambia **solo sull’ambiente di produzione** (branch di deploy o override):
+**Cosa fa Prisma (e perché c’è quel file).**  
+`apps/api/prisma/schema.prisma` elenca le tabelle (User, Adventure, …). In cima dice *che tipo* di database usare. Oggi c’è `sqlite`: un file sul PC (`dev.db`). Neon è **Postgres**, un altro tipo. Prisma non parla con Neon finché nel file resta `sqlite`. Non ci sono due copie del file e nessun “branch di deploy” separato: è **un solo file**.
 
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
+**Adesso:** se stai solo aprendo Neon, **non toccare** `schema.prisma`. Il PC resta su SQLite.
 
-In locale lascia `provider = "sqlite"` e `DATABASE_URL="file:./dev.db"` in `apps/api/.env`. Non mischiare un URL Postgres con `provider = "sqlite"`.
+**Quando Render è pronto** (sezione 4), si fa una volta sola:
 
-Dopo il cambio a `postgresql`, dalla root (con `DATABASE_URL` Neon esportata):
+1. In `schema.prisma` cambi `provider = "sqlite"` in `provider = "postgresql"`.
+2. Su Render (e, se sviluppi contro il cloud, nel `.env` locale che **non** va su git) metti la connection string Neon come `DATABASE_URL`.
+3. Col terminale, con quella URL:
 
-```bash
-export DATABASE_URL="postgresql://..."
-npm run db:generate -w @browser-rpg/api
-npm run db:push -w @browser-rpg/api
-```
+   ```bash
+   export DATABASE_URL="incolla-qui-la-stringa-neon"
+   npm run db:generate -w @browser-rpg/api
+   npm run db:push -w @browser-rpg/api
+   ```
 
-**Fatto quando:** Neon mostra tabelle (`User`, `Adventure`, …) dopo `db:push`.
+   `db:push` crea su Neon le tabelle. Poi nel dashboard Neon vedi `User`, `Adventure`, ecc.
 
-**Limite Free:** 0.5 GB; scale-to-zero (cold start breve). 1000 utenti/mese ci stanno.
+Dopo quel cambio il file `dev.db` in locale **non** basta più (SQLite e Postgres non convivono nello stesso schema). O punti a Neon, o si torna a sqlite: una cosa alla volta.
+
+**Fatto quando (Neon):** hai account, progetto e connection string salvata. Il cambio di `schema.prisma` si fa con Render, non ora.
+
+**Limite Free:** 0.5 GB, scale-to-zero. 1000 MAU ci stanno.
 
 ---
 
-## 4. Render (API Fastify)
+## 4. Render (API Fastify, da GitHub)
 
-**Obiettivo:** processo Node sempre raggiungibile su `*.onrender.com` (con sleep sul piano Free).
+**Obiettivo:** Node su `*.onrender.com`. Import **GitHub**, non Origin.
 
-1. Registrati su [render.com](https://render.com) con GitHub.
-2. **New → Blueprint** e collega il repo (usa `render.yaml`), **oppure** **New → Web Service** a mano:
-   - Repo: `browser-rpg`
-   - Runtime: Node
-   - **Plan:** Free
+1. [render.com](https://render.com) con GitHub.
+2. **New → Blueprint** (`render.yaml`) **oppure** Web Service:
+   - Repo GitHub `browser-rpg`
+   - Runtime Node, plan **Free**
    - **Build:** `npm ci --include=dev && npm run db:generate -w @browser-rpg/api`
    - **Start:** `npm run start -w @browser-rpg/api`
    - **Health:** `/api/health`
-3. Environment:
-   - `NODE_VERSION` = `20`
-   - `HOST` = `0.0.0.0`
-   - `JWT_SECRET` = stringa lunga casuale (non quella di `.env` locale)
-   - `DATABASE_URL` = URI Neon (provider Prisma `postgresql`)
-   - `FRONTEND_ORIGIN` = URL Vercel (es. `https://browser-rpg-xxx.vercel.app`) — opzionale; CORS oggi è `origin: true`
-4. Dopo il primo deploy, dalla shell Render o in locale con la stessa `DATABASE_URL`: `npm run db:push -w @browser-rpg/api` se le tabelle non ci sono.
-5. Prova: `https://<servizio>.onrender.com/api/health` → `{ "ok": true }`.
-   Sul Free, dopo ~15 minuti di inattività il servizio dorme: la prima richiesta può impiegare 30–50 s.
-6. Plugin Cursor: Marketplace → **Render**, MCP `render` → OAuth. Da chat puoi chiedere log e stato del servizio.
+3. Env: `NODE_VERSION=20`, `HOST=0.0.0.0`, `JWT_SECRET` lungo (non quello locale), `DATABASE_URL` Neon, opzionale `FRONTEND_ORIGIN`.
+4. Se le tabelle mancano: `npm run db:push -w @browser-rpg/api` con la stessa `DATABASE_URL`.
+5. `https://<servizio>.onrender.com/api/health` → `{"ok":true}`. Free: sleep ~15 min, prima richiesta 30–50 s.
+6. **Customize** → plugin **Render** → OAuth. Log e stato da chat.
 
-Poi torna su **Vercel → Settings → Environment Variables**:
+Poi **Vercel → Settings → Environment Variables**:
 
-- `VITE_API_URL` = `https://<servizio>.onrender.com` (**senza** slash finale)
-- Redeploy del frontend
+- `VITE_API_URL` = `https://<servizio>.onrender.com` (niente slash finale)
+- Redeploy frontend
 
-**Fatto quando:** da Vercel, login demo e `/play/demo` funzionano (attendi il wake-up Render se dorme).
+**Fatto quando:** da Vercel, login demo e `/play/demo` funzionano (attendi il wake-up).
 
-**Limite Free:** 0.1 CPU / 512 MB, sleep. Per ~1000 MAU always-on: **Render Starter**, stesso plugin Cursor.
+**Limite Free:** 0.1 CPU / 512 MB. Always-on: **Render Starter**, stesso plugin.
 
-Non usare SQLite su disco Render (niente persistenza). Non wrappare Fastify in Vercel Functions.
+Niente SQLite su disco Render. Niente Fastify su Vercel Functions.
 
 ---
 
-## 5. Cloudflare R2 (pacchetti asset)
+## 5. Cloudflare R2
 
-**Obiettivo:** tileset/sprite/audio fuori da Vercel, con egress gratuito.
+**Obiettivo:** tileset/audio fuori da Vercel.
 
-1. Account [Cloudflare](https://dash.cloudflare.com/sign-up) piano Free.
-2. **R2 → Create bucket** (es. `browser-rpg-packs`).
-3. Abilita **Public access** (dominio `r2.dev` o custom).
-4. CORS del bucket: origini Vercel + `http://localhost:5173`, metodi `GET` / `HEAD` (Phaser carica le PNG dal browser).
-5. Convenzione path: `/packs/<slug>/v<n>/tileset.png` (hash o versione nel path, `Cache-Control` lungo).
-6. Plugin Cursor: Marketplace Cloudflare, MCP `cloudflare` → OAuth. Da chat puoi creare bucket e ispezionare oggetti.
+1. [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up) Free.
+2. **R2 → Create bucket** `browser-rpg-packs`.
+3. Public access (`r2.dev` o custom).
+4. CORS: origini Vercel + `http://localhost:5173`, `GET`/`HEAD`.
+5. Path: `/packs/<slug>/v<n>/tileset.png`.
+6. **Customize** → Cloudflare → OAuth.
 
-JSON avventura (`AdventurePack`) resta nel DB; i `src` delle immagini punteranno agli URL R2 pubblici, non a `/api/files`, quando i pack saranno pronti. Fino ad allora gli upload editor restano su disco dell’API (ok in locale; su Render il disco è effimero).
+Il JSON avventura resta nel DB; i `src` andranno agli URL R2 quando i pack saranno pronti. Upload editor su disco API: ok in locale, su Render il disco è effimero.
 
-**Fatto quando:** un PNG di test è raggiungibile da URL pubblico `https://pub-….r2.dev/...`.
+**Fatto quando:** un PNG di test risponde su `https://pub-….r2.dev/...`.
 
-**Limite Free:** 10 GB storage, 1M write, 10M read/mese, **egress 0€**.
+**Limite Free:** 10 GB, 1M write, 10M read/mese, egress 0€.
 
 ---
 
 ## 6. Sentry
 
-**Obiettivo:** crash Phaser/API visibili in Cursor (e, dopo, Automation su issue nuove).
+**Obiettivo:** crash visibili in Cursor; Automation su issue nuove.
 
-1. Account [Sentry](https://sentry.io) piano **Developer**.
-2. Crea due progetti (o uno): **React/Vite** (web) e **Node** (API).
-3. Copia i DSN:
-   - Web: `VITE_SENTRY_DSN` su Vercel (quando collegherete l’SDK)
-   - API: `SENTRY_DSN` su Render
-4. MCP: in `.cursor/mcp.json` c’è `sentry` → OAuth al primo uso.
-5. Automation Cursor (dopo che arrivano eventi): trigger **Sentry → issue created** → l’agente apre una PR. Si configura in Cursor Automations, non in questo file.
+1. [sentry.io](https://sentry.io) **Developer**.
+2. Progetti React/Vite e Node (o uno).
+3. DSN: `VITE_SENTRY_DSN` su Vercel, `SENTRY_DSN` su Render (quando c’è l’SDK).
+4. **Customize → MCPs** → Sentry (già in `mcp.json`) → OAuth.
+   Per un’Automation che apre PR, Sentry deve essere anche plugin/dashboard MCP, non solo il file: l’editor Automations non vede i server *solo* in `.cursor/mcp.json`.
+5. [cursor.com/automations](https://cursor.com/automations) → trigger **Sentry → issue created** → l’agente apre una PR su **GitHub** (o su Origin se hai il mirror e lo scegli come checkout).
 
-**Fatto quando:** MCP Sentry è autenticato e (dopo l’SDK) un errore di prova compare nel progetto.
+**Fatto quando:** MCP Sentry è connected (non “needs login”).
 
 **Limite Developer:** 5k error/mese, 1 seat.
 
@@ -185,26 +247,22 @@ JSON avventura (`AdventurePack`) resta nel DB; i `src` delle immagini punteranno
 
 ## 7. Resend (quando il login è pubblico)
 
-**Obiettivo:** verifica email e reset password. Si può saltare finché usi solo il login demo.
+Si può saltare con il solo login demo.
 
-1. Account [Resend](https://resend.com) Free.
-2. Verifica un dominio (o usa il sandbox per test).
-3. API key **solo** su Render: `RESEND_API_KEY`.
-4. Limite: 3000 mail/mese, **100/giorno** — un launch con centinaia di signup nello stesso giorno satura il cap.
+1. [resend.com](https://resend.com) Free.
+2. Dominio o sandbox.
+3. `RESEND_API_KEY` solo su Render.
+4. 3000 mail/mese, **100/giorno**.
 
-**Fatto quando:** da Resend parte una mail di test.
-
-Non serve Auth0/Clerk: JWT è già in Fastify.
+**Fatto quando:** parte una mail di test. JWT resta in Fastify: niente Auth0/Clerk.
 
 ---
 
-## 8. Cursor `mcp.json`
+## 8. Customize + `mcp.json`
 
-Il file [`.cursor/mcp.json`](../.cursor/mcp.json) è nel repo (solo URL OAuth, **niente token**).
+Il file [`.cursor/mcp.json`](../.cursor/mcp.json) è nel repo (URL OAuth, **niente token**). Resta valido e si merge con Customize.
 
-Server:
-
-| Nome | URL |
+| Nome in file | URL |
 | --- | --- |
 | vercel | `https://mcp.vercel.com` |
 | render | `https://mcp.render.com/mcp` |
@@ -212,48 +270,45 @@ Server:
 | cloudflare | `https://mcp.cloudflare.com/mcp` |
 | sentry | `https://mcp.sentry.dev/mcp` |
 
-1. Ricarica Cursor (o MCP settings) dopo il clone.
-2. Per ogni riga: **Connect** / login OAuth.
-3. GitHub **non** sta in `mcp.json`: è l’app nativa (passo 1).
-4. Plugin Marketplace (Vercel, Render, Neon, Cloudflare) installano anche skill/regole: conviene installarli comunque.
+1. Sidebar **Customize → MCPs** (non Settings → MCP).
+2. Per ogni server: **Connect** / OAuth. Installa anche i plugin Marketplace (skill/regole in più).
+3. Cloud Agents: MCP dal dropdown su [cursor.com/agents](https://cursor.com/agents) o **Dashboard → Integrations & MCP**, non dal solo `mcp.json` locale.
+4. Toggle e log: **Customize → MCPs**; Output → **MCP Logs**.
 
-**Fatto quando:** in Settings → MCP tutti e cinque i server risultano connected (non “needs login”).
+**Fatto quando:** in Customize i cinque server sono connected.
 
 ---
 
 ## 9. Verifica end-to-end
 
-**Obiettivo:** un utente reale usa landing, login e demo sul web pubblico.
+1. `curl -sS https://<api>.onrender.com/api/health` → `{"ok":true}` (cold start).
+2. URL Vercel → landing.
+3. Login demo o **Prova demo**.
+4. `/play/demo` e movimento.
+5. Editor: salva un’avventura (JSON su Neon).
+6. Da chat: log Render e ultimo deploy Vercel (plugin connessi).
 
-1. `curl -sS https://<api>.onrender.com/api/health` → `{"ok":true}` (attendi il cold start).
-2. Apri l’URL Vercel → landing.
-3. Login demo (`demo@browser-rpg.local` / `demo1234`) oppure **Prova demo**.
-4. Hub → apri `/play/demo` e muovi il personaggio.
-5. Crea un’avventura in editor e salva (pack JSON su Neon).
-6. Log: da Cursor chiedi all’agente i log Render e l’ultimo deploy Vercel. Non serve UptimeRobot.
+**Fatto quando:** play demo su Vercel parla con Render+Neon.
 
-**Fatto quando:** play demo funziona su Vercel parlante con Render+Neon.
-
-Checklist regressione:
-
-- [ ] `/hub` e `/play/demo` non danno 404 (rewrite SPA)
-- [ ] Login fallisce in modo visibile se Render dorme, poi riesce al retry
-- [ ] Nessun tileset pesante è servito da `*.vercel.app`
+- [ ] `/hub` e `/play/demo` non 404
+- [ ] Login poi ok dopo il wake-up Render
+- [ ] Nessun tileset pesante da `*.vercel.app`
 
 ---
 
-## 10. Cosa non aprire
+## 10. Cosa non aprire / non fare
 
+- **Continue with Origin** su Vercel Hobby
+- Sostituire il remote GitHub con `origin.cursor.com` (Render e Hobby si rompono)
 - Vercel Blob, AWS S3, Cloudinary — usate R2
-- Auth0, Clerk, Supabase Auth
-- Upstash Redis
-- Fly.io, Railway (niente free tier sostenibile)
-- Oracle Cloud, Hetzner, UptimeRobot (niente integrazione Cursor)
+- Auth0, Clerk, Redis, Fly.io, Railway
+- Oracle, Hetzner, UptimeRobot
 - Datadog a pagamento
+- Path UI `Settings → Integrations` nella app desktop
 
 ---
 
-## Variabili d’ambiente (riepilogo)
+## Variabili d’ambiente
 
 | Variabile | Dove | Esempio |
 | --- | --- | --- |
@@ -262,9 +317,9 @@ Checklist regressione:
 | `DATABASE_URL` | Render | URI Neon `postgresql://…` |
 | `JWT_SECRET` | Render | valore generato |
 | `HOST` | Render | `0.0.0.0` |
-| `SENTRY_DSN` / `VITE_SENTRY_DSN` | Render / Vercel | quando c’è l’SDK |
-| `RESEND_API_KEY` | Render | quando servono le email |
+| `SENTRY_DSN` / `VITE_SENTRY_DSN` | Render / Vercel | con SDK |
+| `RESEND_API_KEY` | Render | con email |
 
-File di esempio: [`apps/api/.env.example`](../apps/api/.env.example), [`apps/web/.env.example`](../apps/web/.env.example).
+Esempi: [`apps/api/.env.example`](../apps/api/.env.example), [`apps/web/.env.example`](../apps/web/.env.example).
 
-Se cambiano gli script `build`/`start` del monorepo, aggiorna questo documento, `vercel.json` e `render.yaml`.
+Se cambiano `build`/`start`, aggiorna questo file, `vercel.json` e `render.yaml`.
