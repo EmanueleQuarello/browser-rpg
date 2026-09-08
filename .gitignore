@@ -14,3 +14,4 @@ tsconfig.tsbuildinfo
 .vercel
 .wrangler
 .cursor/settings.json
+.env.local

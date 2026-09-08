@@ -13,9 +13,14 @@
     "db:push": "npm run db:push -w @browser-rpg/api",
     "db:generate": "npm run db:generate -w @browser-rpg/api"
   },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "vite": "^6.3.2"
+  },
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
+  "packageManager": "npm@10.9.4",
   "engines": {
     "node": ">=20"
   }
