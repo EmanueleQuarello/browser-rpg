@@ -28,16 +28,18 @@ function CommandView({
   onChange: (c: EventCommand) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="cmd-block">
       <div className="row">
         <select
           value={cmd.type}
+          aria-label={t("commands")}
           onChange={(e) => onChange(makeCommand(e.target.value as EventCommand["type"]))}
         >
-          {COMMAND_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {COMMAND_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {t(`cmd.${type}`)}
             </option>
           ))}
         </select>
@@ -45,11 +47,12 @@ function CommandView({
           ×
         </button>
       </div>
+      <p className="help-line">{t(`cmdHelp.${cmd.type}`)}</p>
       {cmd.type === "showText" && <LocFields value={cmd.text} onChange={(text) => onChange({ ...cmd, text })} />}
       {cmd.type === "setFlag" && (
         <div className="row">
           <select value={cmd.flagId} onChange={(e) => onChange({ ...cmd, flagId: e.target.value })}>
-            <option value="">flag</option>
+            <option value="">{t("flag")}</option>
             {pack.flags.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.id}
@@ -60,15 +63,15 @@ function CommandView({
             value={String(cmd.value)}
             onChange={(e) => onChange({ ...cmd, value: e.target.value === "true" })}
           >
-            <option value="true">true</option>
-            <option value="false">false</option>
+            <option value="true">{t("trueVal")}</option>
+            <option value="false">{t("falseVal")}</option>
           </select>
         </div>
       )}
       {(cmd.type === "giveItem" || cmd.type === "removeItem") && (
         <div className="row">
           <select value={cmd.itemId} onChange={(e) => onChange({ ...cmd, itemId: e.target.value })}>
-            <option value="">item</option>
+            <option value="">{t("itemKind")}</option>
             {pack.items.map((i) => (
               <option key={i.id} value={i.id}>
                 {i.id}
@@ -78,6 +81,8 @@ function CommandView({
           <input
             className="input"
             type="number"
+            title={t("qty")}
+            aria-label={t("qty")}
             value={cmd.qty ?? 1}
             onChange={(e) => onChange({ ...cmd, qty: Number(e.target.value) })}
           />
@@ -98,7 +103,7 @@ function CommandView({
       )}
       {cmd.type === "startBattle" && (
         <select value={cmd.monsterId} onChange={(e) => onChange({ ...cmd, monsterId: e.target.value })}>
-          <option value="">monster</option>
+          <option value="">{t("monster")}</option>
           {pack.monsters.map((m) => (
             <option key={m.id} value={m.id}>
               {m.id}
@@ -107,7 +112,14 @@ function CommandView({
         </select>
       )}
       {cmd.type === "wait" && (
-        <input className="input" type="number" value={cmd.ms} onChange={(e) => onChange({ ...cmd, ms: Number(e.target.value) })} />
+        <input
+          className="input"
+          type="number"
+          title={t("waitMs")}
+          aria-label={t("waitMs")}
+          value={cmd.ms}
+          onChange={(e) => onChange({ ...cmd, ms: Number(e.target.value) })}
+        />
       )}
       {cmd.type === "setTile" && (
         <div className="row">
@@ -118,19 +130,34 @@ function CommandView({
             value={String(cmd.collision)}
             onChange={(e) => onChange({ ...cmd, collision: e.target.value === "true" })}
           >
-            <option value="false">walk</option>
-            <option value="true">block</option>
+            <option value="false">{t("walkable")}</option>
+            <option value="true">{t("blocked")}</option>
           </select>
         </div>
       )}
       {cmd.type === "removeEntity" && (
-        <input className="input" value={cmd.entityId} onChange={(e) => onChange({ ...cmd, entityId: e.target.value })} />
+        <input
+          className="input"
+          title={t("entityId")}
+          aria-label={t("entityId")}
+          placeholder={t("entityId")}
+          value={cmd.entityId}
+          onChange={(e) => onChange({ ...cmd, entityId: e.target.value })}
+        />
       )}
       {cmd.type === "moveNpc" && (
-        <input className="input" value={cmd.entityId} onChange={(e) => onChange({ ...cmd, entityId: e.target.value })} />
+        <input
+          className="input"
+          title={t("entityId")}
+          aria-label={t("entityId")}
+          placeholder={t("entityId")}
+          value={cmd.entityId}
+          onChange={(e) => onChange({ ...cmd, entityId: e.target.value })}
+        />
       )}
       {cmd.type === "if" && (
         <div>
+          <label className="muted">{t("condition")}</label>
           <select
             value={cmd.condition.type === "hasItem" ? "hasItem" : "flag"}
             onChange={(e) =>
@@ -143,8 +170,8 @@ function CommandView({
               })
             }
           >
-            <option value="flag">flag</option>
-            <option value="hasItem">hasItem</option>
+            <option value="flag">{t("flag")}</option>
+            <option value="hasItem">{t("hasItem")}</option>
           </select>
           {cmd.condition.type === "flag" && (
             <select
@@ -170,11 +197,13 @@ function CommandView({
               ))}
             </select>
           )}
-          <CommandList
-            pack={pack}
-            commands={cmd.then}
-            onChange={(then) => onChange({ ...cmd, then })}
-          />
+          <p className="muted" style={{ marginTop: 8 }}>
+            {t("then")}
+          </p>
+          <CommandList pack={pack} commands={cmd.then} onChange={(then) => onChange({ ...cmd, then })} />
+          <p className="muted" style={{ marginTop: 8 }}>
+            {t("else")}
+          </p>
           <CommandList
             pack={pack}
             commands={cmd.else ?? []}
@@ -184,6 +213,7 @@ function CommandView({
       )}
       {cmd.type === "showChoices" && (
         <div>
+          <p className="muted">{t("choices")}</p>
           <LocFields value={cmd.prompt} onChange={(prompt) => onChange({ ...cmd, prompt })} />
           {cmd.choices.map((ch, i) => (
             <div key={i} className="cmd-block">
@@ -216,7 +246,7 @@ function CommandView({
               })
             }
           >
-            +
+            {t("addChoice")}
           </button>
         </div>
       )}
