@@ -294,6 +294,25 @@ label {
   color: var(--muted);
 }
 
+.help-line {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
+  margin: 6px 0 0;
+}
+
+.editor-tip {
+  border: 1px solid var(--gold-dim);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: rgba(212, 177, 90, 0.08);
+}
+
+.editor-tip .btn {
+  margin-top: 8px;
+}
+
 .error {
   color: var(--danger);
 }
