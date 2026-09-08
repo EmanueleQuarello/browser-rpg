@@ -2,11 +2,17 @@
 
 ## Sei qui (8 settembre 2026)
 
-Iscrizioni fatte: **Vercel, Render, Neon**. Push su `main` per sbloccare il build Vercel (`vite build`) e Prisma Postgres su Render. URL: `https://browser-rpg-snowy.vercel.app` e `https://browser-rpg-api.onrender.com`. Cancella il progetto Vercel **browser-rpg-api** se esiste (l’API è solo Render).
+Account fatti: **Vercel, Render, Neon, R2, Resend, Sentry**. Il gioco è **online**.
 
-**Non fare ora:** Cloudflare R2, Sentry, Resend, altri MCP. Servono dopo (o mai, per l’alpha).
+- SPA: https://browser-rpg-snowy.vercel.app
+- API: https://browser-rpg-api.onrender.com (`/api/health` → `{"ok":true}`)
+- Demo: `demo@browser-rpg.local` / `demo1234`
 
-**Prossimo passo unico:** importare il repo GitHub su Vercel (Hobby), *poi* creare il Web Service su Render. Dettagli sotto in «Cosa fare adesso».
+R2 bucket `browser-rpg-packs` (pubblico + CORS). Chiavi Resend/Sentry nei dashboard.
+
+Nel codice: Sentry (errori), mail di benvenuto Resend su register, upload asset su R2 se le chiavi S3 sono su Render (altrimenti disco locale).
+
+Se esiste un secondo progetto Vercel **browser-rpg-api**, cancellalo.
 
 ---
 
@@ -217,10 +223,11 @@ Niente SQLite su disco Render. Niente Fastify su Vercel Functions.
 2. **R2 → Create bucket** `browser-rpg-packs`.
 3. Public access (`r2.dev` o custom).
 4. CORS: origini Vercel + `http://localhost:5173`, `GET`/`HEAD`.
-5. Path: `/packs/<slug>/v<n>/tileset.png`.
-6. **Customize** → Cloudflare → OAuth.
+5. Path upload: `adventures/<adventureId>/<uuid>.png`.
+6. **API token** (per upload da Render): R2 → Manage R2 API Tokens → Create. Permessi **Object Read & Write** sul bucket `browser-rpg-packs`. Su Render: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME=browser-rpg-packs`, `R2_PUBLIC_BASE_URL=https://pub-….r2.dev`.
+7. **Customize** → Cloudflare → OAuth.
 
-Il JSON avventura resta nel DB; i `src` andranno agli URL R2 quando i pack saranno pronti. Upload editor su disco API: ok in locale, su Render il disco è effimero.
+Il JSON avventura resta nel DB. Senza le chiavi R2 l’editor salva sul disco di Render (effimero).
 
 **Fatto quando:** un PNG di test risponde su `https://pub-….r2.dev/...`.
 
@@ -317,8 +324,13 @@ Il file [`.cursor/mcp.json`](../.cursor/mcp.json) è nel repo (URL OAuth, **nien
 | `DATABASE_URL` | Render | URI Neon `postgresql://…` |
 | `JWT_SECRET` | Render | valore generato |
 | `HOST` | Render | `0.0.0.0` |
-| `SENTRY_DSN` / `VITE_SENTRY_DSN` | Render / Vercel | con SDK |
-| `RESEND_API_KEY` | Render | con email |
+| `SENTRY_DSN` | Render | DSN progetto `browser-rpg-api` |
+| `VITE_SENTRY_DSN` | Vercel (build) | DSN progetto `browser-rpg-web` |
+| `RESEND_API_KEY` | Render | `re_…` |
+| `R2_ACCOUNT_ID` | Render | Account ID Cloudflare |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Render | API token R2 |
+| `R2_BUCKET_NAME` | Render | `browser-rpg-packs` |
+| `R2_PUBLIC_BASE_URL` | Render | `https://pub-….r2.dev` |
 
 Esempi: [`apps/api/.env.example`](../apps/api/.env.example), [`apps/web/.env.example`](../apps/web/.env.example).
 

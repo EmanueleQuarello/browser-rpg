@@ -1,3 +1,4 @@
+import "./instrument.js";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
@@ -6,11 +7,13 @@ import bcrypt from "bcryptjs";
 import { createReadStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { createDemoPack } from "@browser-rpg/shared";
+import { Sentry } from "./instrument.js";
 import { prisma } from "./lib/prisma.js";
 import { UPLOAD_ROOT } from "./lib/paths.js";
-import { adventureRoutes } from "./routes/adventures.js";
+import { adventureRoutes, originOf } from "./routes/adventures.js";
 import { authRoutes } from "./routes/auth.js";
 import { playRoutes, savegameRoutes } from "./routes/play.js";
+import { assetPublicUrl } from "./lib/storage.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -49,6 +52,9 @@ async function main() {
   await seedDemo();
 
   const app = Fastify({ logger: true });
+  if (typeof Sentry.setupFastifyErrorHandler === "function") {
+    Sentry.setupFastifyErrorHandler(app);
+  }
   await app.register(cors, { origin: true, credentials: true });
   await app.register(jwt, { secret: process.env.JWT_SECRET ?? "dev-secret", sign: { expiresIn: "7d" } });
   await app.register(multipart, { limits: { fileSize: 8 * 1024 * 1024 } });
@@ -64,6 +70,9 @@ async function main() {
     const { id } = req.params as { id: string };
     const asset = await prisma.asset.findUnique({ where: { id } });
     if (!asset) return reply.code(404).send({ error: "Not found" });
+    if (asset.path.startsWith("r2:")) {
+      return reply.redirect(assetPublicUrl(asset.path, asset.id, originOf(req)));
+    }
     reply.header("Content-Type", asset.mime);
     return reply.send(createReadStream(asset.path));
   });
@@ -73,5 +82,6 @@ async function main() {
 
 main().catch((err) => {
   console.error(err);
-  process.exit(1);
+  Sentry.captureException(err);
+  void Sentry.flush(2000).finally(() => process.exit(1));
 });

@@ -1,12 +1,10 @@
 import { createDemoPack, parseAdventurePack, type AdventurePack } from "@browser-rpg/shared";
 import type { FastifyInstance } from "fastify";
-import { createWriteStream } from "node:fs";
-import { mkdir, unlink } from "node:fs/promises";
 import path from "node:path";
-import { pipeline } from "node:stream/promises";
 import { requireUser, userId } from "../lib/auth.js";
 import { prisma } from "../lib/prisma.js";
-import { UPLOAD_ROOT } from "../lib/paths.js";
+import { Sentry } from "../instrument.js";
+import { assetPublicUrl, deleteAssetFile, putAssetFile } from "../lib/storage.js";
 
 function slugify(title: string): string {
   const base = title
@@ -70,11 +68,11 @@ export async function adventureRoutes(app: FastifyInstance) {
         slug: adv.slug,
         publishedAt: adv.publishedAt,
         pack: resolvePackAssets(pack, originOf(req)),
-        assets: adv.assets.map((a) => ({
+        assets: adv.assets.map((a: { id: string; originalName: string; mime: string; path: string }) => ({
           id: a.id,
           originalName: a.originalName,
           mime: a.mime,
-          url: `${originOf(req)}/api/files/${a.id}`,
+          url: assetPublicUrl(a.path, a.id, originOf(req)),
         })),
       },
     };
@@ -126,20 +124,30 @@ export async function adventureRoutes(app: FastifyInstance) {
     if (!file) return reply.code(400).send({ error: "Missing file" });
     const mime = file.mimetype;
     if (!mime.startsWith("image/")) return reply.code(400).send({ error: "Images only" });
-    const dir = path.join(UPLOAD_ROOT, id);
-    await mkdir(dir, { recursive: true });
     const assetId = crypto.randomUUID();
     const ext = path.extname(file.filename || "") || ".png";
-    const stored = `${assetId}${ext}`;
-    const dest = path.join(dir, stored);
-    await pipeline(file.file, createWriteStream(dest));
+    let storedPath: string;
+    let stored: string;
+    try {
+      ({ storedPath, filename: stored } = await putAssetFile({
+        adventureId: id,
+        assetId,
+        ext,
+        mime,
+        body: file.file,
+      }));
+    } catch (err) {
+      req.log.error(err);
+      Sentry.captureException(err);
+      return reply.code(502).send({ error: "Upload failed" });
+    }
     const row = await prisma.asset.create({
       data: {
         id: assetId,
         adventureId: id,
         filename: stored,
         mime,
-        path: dest,
+        path: storedPath,
         originalName: file.filename || stored,
       },
     });
@@ -148,7 +156,7 @@ export async function adventureRoutes(app: FastifyInstance) {
         id: row.id,
         originalName: row.originalName,
         mime: row.mime,
-        url: `${originOf(req)}/api/files/${row.id}`,
+        url: assetPublicUrl(row.path, row.id, originOf(req)),
         src: `file:${row.id}`,
       },
     };
@@ -160,13 +168,17 @@ export async function adventureRoutes(app: FastifyInstance) {
     if (!adv) return reply.code(404).send({ error: "Not found" });
     const asset = await prisma.asset.findFirst({ where: { id: assetId, adventureId: id } });
     if (!asset) return reply.code(404).send({ error: "Not found" });
-    await unlink(asset.path).catch(() => undefined);
+    await deleteAssetFile(asset.path);
     await prisma.asset.delete({ where: { id: assetId } });
     return { ok: true };
   });
 }
 
-export function originOf(req: { headers: { origin?: string; host?: string }; protocol: string }): string {
-  if (req.headers.origin) return req.headers.origin;
-  return `http://${req.headers.host ?? "localhost:3001"}`;
+export function originOf(req: {
+  headers: { origin?: string; host?: string; "x-forwarded-proto"?: string | string[] };
+  protocol: string;
+}): string {
+  const forwarded = req.headers["x-forwarded-proto"];
+  const proto = (Array.isArray(forwarded) ? forwarded[0] : forwarded) || req.protocol || "http";
+  return `${proto}://${req.headers.host ?? "127.0.0.1:3001"}`;
 }

@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireUser, signToken, userId } from "../lib/auth.js";
+import { sendWelcomeEmail } from "../lib/mail.js";
 import { prisma } from "../lib/prisma.js";
 
 const creds = z.object({
@@ -19,6 +20,7 @@ export async function authRoutes(app: FastifyInstance) {
     const passwordHash = await bcrypt.hash(parsed.data.password, 10);
     const user = await prisma.user.create({ data: { email, passwordHash } });
     const token = await signToken(app, user.id, user.email);
+    void sendWelcomeEmail(user.email);
     return { token, user: { id: user.id, email: user.email } };
   });
 

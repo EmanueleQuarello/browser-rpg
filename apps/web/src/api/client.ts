@@ -1,3 +1,5 @@
+import { Sentry } from "../sentry";
+
 const TOKEN_KEY = "brpg-token";
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
@@ -31,6 +33,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
       status: number;
     };
     err.status = res.status;
+    if (err.status >= 500) Sentry.captureException(err);
     throw err;
   }
   return data as T;
