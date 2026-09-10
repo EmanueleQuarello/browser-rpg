@@ -26,7 +26,7 @@ export function Hud({
         <div className="bar" style={{ margin: "6px 0" }}>
           <span style={{ width: `${(state.hp / state.maxHp) * 100}%` }} />
         </div>
-        <div className="muted" style={{ fontSize: 13 }}>
+        <div className="hud-stats">
           {t("hp")} {state.hp}/{state.maxHp} · {t("atk")} {atk} · {t("def")} {def} · {t("xp")} {state.xp}
         </div>
       </div>

@@ -4,18 +4,21 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, getToken, setToken } from "../api/client";
 
 export function LangToggle() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const active = i18n.language.startsWith("en") ? "en" : "it";
+  const next = active === "it" ? "en" : "it";
   return (
     <button
       className="lang-toggle"
       type="button"
+      aria-label={t("switchLanguage", { lang: next.toUpperCase() })}
+      title={t("switchLanguage", { lang: next.toUpperCase() })}
       onClick={() => {
-        const next = i18n.language === "it" ? "en" : "it";
         void i18n.changeLanguage(next);
         localStorage.setItem("brpg-lang", next);
       }}
     >
-      {i18n.language === "it" ? "EN" : "IT"}
+      {active.toUpperCase()}
     </button>
   );
 }

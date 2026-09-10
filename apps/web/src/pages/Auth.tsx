@@ -22,6 +22,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [password, setPassword] = useState(mode === "login" ? "demo1234" : "");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [busyAction, setBusyAction] = useState<"form" | "demo" | null>(null);
 
   const goIn = (token: string) => {
     setToken(token);
@@ -33,6 +34,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     e.preventDefault();
     setErr("");
     setBusy(true);
+    setBusyAction("form");
     try {
       const res =
         mode === "login"
@@ -43,12 +45,14 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       setErr(authErrorMessage(t, caught));
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   };
 
   const enterDemo = async () => {
     setErr("");
     setBusy(true);
+    setBusyAction("demo");
     try {
       const res = await api.loginDemo();
       goIn(res.token);
@@ -56,6 +60,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       setErr(authErrorMessage(t, caught));
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   };
 
@@ -80,6 +85,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               inputMode="email"
               autoComplete="username"
               required
+              disabled={busy}
             />
           </label>
           <label>
@@ -92,9 +98,16 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               required
               minLength={6}
+              disabled={busy}
             />
           </label>
           {err && <p className="error">{err}</p>}
+          {busy && (
+            <p className="auth-status" role="status" aria-live="polite">
+              <span className="spinner" aria-hidden="true" />
+              {busyAction === "demo" ? t("loggingInDemo") : t("loggingIn")}
+            </p>
+          )}
           <button className="btn" type="submit" disabled={busy}>
             {mode === "login" ? t("login") : t("register")}
           </button>

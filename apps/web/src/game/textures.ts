@@ -171,6 +171,29 @@ export function makePromptCanvas(size = 16): HTMLCanvasElement {
   return c;
 }
 
+export function makeQuestMarkerCanvas(size = 24): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext("2d")!;
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, size, size);
+  const cx = size / 2;
+  ctx.strokeStyle = "#d4b15a";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cx, size / 2 - 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#d4b15a";
+  ctx.beginPath();
+  ctx.moveTo(cx, 4);
+  ctx.lineTo(cx - 5, 12);
+  ctx.lineTo(cx + 5, 12);
+  ctx.closePath();
+  ctx.fill();
+  return c;
+}
+
 export function isBuiltin(src: string): src is `builtin:${string}` {
   return src.startsWith("builtin:");
 }

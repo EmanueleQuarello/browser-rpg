@@ -19,6 +19,10 @@ export function PhaserGame({ pack, lang, saved, sessionRef, onState }: Props) {
   if (sessionRef.current) sessionRef.current.lang = lang;
 
   useEffect(() => {
+    sessionRef.current?.scene?.refreshQuestMarker();
+  }, [lang]);
+
+  useEffect(() => {
     if (!parentRef.current) return;
     const session = new PlaySession(pack, lang, saved);
     session.onState = () => onStateRef.current();

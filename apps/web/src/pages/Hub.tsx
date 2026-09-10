@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { ensureDemoSession } from "../demoAuth";
 import { TopBar, useAuth } from "../ui/Shell";
 
 export function HubPage() {
   const { t } = useTranslation();
   const { email, ready } = useAuth();
   const nav = useNavigate();
+  const [demoBusy, setDemoBusy] = useState(false);
   const [list, setList] = useState<
     { id: string; title: string; slug: string | null; publishedAt: string | null; updatedAt: string }[]
   >([]);
@@ -20,6 +22,16 @@ export function HubPage() {
     if (!email) return;
     void api.listAdventures().then((r) => setList(r.adventures));
   }, [email]);
+
+  const playDemo = async () => {
+    setDemoBusy(true);
+    try {
+      await ensureDemoSession();
+      nav("/play/demo");
+    } finally {
+      setDemoBusy(false);
+    }
+  };
 
   if (!ready || !email) return null;
 
@@ -40,9 +52,9 @@ export function HubPage() {
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h2>{t("myAdventures")}</h2>
-          <Link className="btn secondary" to="/play/demo">
-            {t("playDemo")}
-          </Link>
+          <button className="btn secondary" type="button" disabled={demoBusy} onClick={() => void playDemo()}>
+            {demoBusy ? t("startingDemo") : t("playDemo")}
+          </button>
         </div>
         <div className="grid-cards" style={{ marginTop: 16 }}>
           {list.map((a) => (

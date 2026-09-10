@@ -36,6 +36,7 @@ export type SceneApi = {
   loadMap: (mapId: string, x: number, y: number) => void;
   syncEntities: () => void;
   refreshPrompts: () => void;
+  refreshQuestMarker: () => void;
 };
 
 function uiBlocked(): boolean {
@@ -127,6 +128,7 @@ export class PlaySession {
     this.onState?.();
     useRuntimeUi.getState().bumpHud();
     this.scene?.refreshPrompts();
+    this.scene?.refreshQuestMarker();
   }
 
   async runEnterMap() {
