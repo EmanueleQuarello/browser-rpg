@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
+import { ensureDemoSession } from "../demoAuth";
 import { PhaserGame } from "../game/PhaserGame";
 import { useRuntimeUi } from "../game/runtimeStore";
 import type { PlaySession } from "../game/session";
@@ -15,6 +16,7 @@ import { CombatOverlay } from "../ui/CombatOverlay";
 import { DialogueOverlay } from "../ui/DialogueOverlay";
 import { Hud } from "../ui/Hud";
 import { InventoryOverlay } from "../ui/InventoryOverlay";
+import { PlayControlsHint } from "../ui/PlayControlsHint";
 import { LangToggle, useAuth } from "../ui/Shell";
 import { useTouchUi } from "../ui/useTouchUi";
 
@@ -22,17 +24,34 @@ export function PlayPage() {
   const { slug } = useParams();
   const { email, ready } = useAuth();
   const nav = useNavigate();
+  const { t } = useTranslation();
   const [pack, setPack] = useState<AdventurePack | null>(null);
   const [adventureId, setAdventureId] = useState<string>();
   const [saved, setSaved] = useState<GameState | null>(null);
   const [err, setErr] = useState("");
+  const [bootingDemo, setBootingDemo] = useState(false);
+  const [playEmail, setPlayEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    if (ready && !email) nav("/login", { state: { from: `/play/${slug}` } });
+    if (!ready) return;
+    if (email) {
+      setPlayEmail(email);
+      return;
+    }
+    if (slug === "demo") {
+      setBootingDemo(true);
+      void ensureDemoSession()
+        .then(() => api.me())
+        .then((r) => setPlayEmail(r.user?.email ?? "demo@browser-rpg.local"))
+        .catch(() => nav("/login", { state: { from: `/play/${slug}` } }))
+        .finally(() => setBootingDemo(false));
+      return;
+    }
+    nav("/login", { state: { from: `/play/${slug}` } });
   }, [ready, email, nav, slug]);
 
   useEffect(() => {
-    if (!slug || !email) return;
+    if (!slug || !playEmail) return;
     void api
       .play(slug)
       .then((r) => {
@@ -41,9 +60,16 @@ export function PlayPage() {
         setSaved((r.save as GameState) ?? null);
       })
       .catch(() => setErr("not found"));
-  }, [slug, email]);
+  }, [slug, playEmail]);
 
-  if (!email && ready) return null;
+  if (!ready || bootingDemo || (!playEmail && slug === "demo")) {
+    return (
+      <div className="page">
+        <p className="muted">{t("loadingDemo")}</p>
+      </div>
+    );
+  }
+  if (!playEmail && ready) return null;
   if (err) {
     return (
       <div className="page">
@@ -75,9 +101,11 @@ export function PlayView({
   const [tick, setTick] = useState(0);
   const onState = useCallback(() => setTick((n) => n + 1), []);
   const state = sessionRef.current?.state;
+  const dialogueOpen = useRuntimeUi((s) => !!s.dialogue);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (dialogueOpen) return;
       if (e.key === "i" || e.key === "I") useRuntimeUi.getState().setInventoryOpen(true);
       if (e.key === "Escape") {
         useRuntimeUi.getState().setInventoryOpen(false);
@@ -85,7 +113,7 @@ export function PlayView({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [dialogueOpen]);
 
   const save = async () => {
     const s = sessionRef.current?.state;
@@ -111,7 +139,7 @@ export function PlayView({
               {t("brand")}
             </Link>
           )}
-          <span className="muted">{t("tapHint")}</span>
+          <PlayControlsHint />
         </div>
         <div className="row">
           <LangToggle />
@@ -126,10 +154,10 @@ export function PlayView({
           sessionRef={sessionRef}
           onState={onState}
         />
+        <DialogueOverlay lang={lang} />
         {state && (
           <>
             <Hud pack={pack} state={state} lang={lang} onSave={persist ? () => void save() : undefined} />
-            <DialogueOverlay lang={lang} />
             <CombatOverlay pack={pack} state={state} lang={lang} onState={onState} />
             <InventoryOverlay
               pack={pack}
@@ -140,7 +168,7 @@ export function PlayView({
             />
           </>
         )}
-        {touchUi && (
+        {touchUi && !dialogueOpen && (
           <button
             className="action-btn force-show"
             type="button"
@@ -152,7 +180,7 @@ export function PlayView({
         )}
         {!state && tick === 0 && <Hud pack={pack} state={dummyState(pack)} lang={lang} />}
         {toast && (
-          <div className="overlay-card" style={{ bottom: "auto", top: 12 }}>
+          <div className="overlay-card toast-card" style={{ bottom: "auto", top: 12 }}>
             {toast}
           </div>
         )}

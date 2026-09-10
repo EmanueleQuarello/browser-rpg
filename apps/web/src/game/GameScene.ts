@@ -10,7 +10,7 @@ import {
 import Phaser from "phaser";
 import { resolveAssetSrc } from "../api/client";
 import type { PlaySession } from "./session";
-import { isBuiltin, makePromptCanvas, makeSpriteCanvas, makeTilesetCanvas, type BuiltinSprite } from "./textures";
+import { isBuiltin, makePromptCanvas, makeQuestMarkerCanvas, makeSpriteCanvas, makeTilesetCanvas, type BuiltinSprite } from "./textures";
 
 export class GameScene extends Phaser.Scene {
   session!: PlaySession;
@@ -19,6 +19,9 @@ export class GameScene extends Phaser.Scene {
   entitySprites = new Map<string, Phaser.GameObjects.Image>();
   prompt?: Phaser.GameObjects.Image;
   promptTween?: Phaser.Tweens.Tween;
+  questMarker?: Phaser.GameObjects.Image;
+  questMarkerTween?: Phaser.Tweens.Tween;
+  questLabel?: Phaser.GameObjects.Text;
   player!: Phaser.GameObjects.Image;
   cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   wasd!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -44,6 +47,9 @@ export class GameScene extends Phaser.Scene {
     }
     if (!this.textures.exists("builtin:prompt")) {
       this.textures.addCanvas("builtin:prompt", makePromptCanvas(16));
+    }
+    if (!this.textures.exists("builtin:quest")) {
+      this.textures.addCanvas("builtin:quest", makeQuestMarkerCanvas(24));
     }
     const atlas = this.textures.get("builtin-tileset");
     for (let i = 0; i < 12; i++) {
@@ -114,6 +120,7 @@ export class GameScene extends Phaser.Scene {
       },
       syncEntities: () => this.rebuildEntities(),
       refreshPrompts: () => this.refreshPrompts(),
+      refreshQuestMarker: () => this.refreshQuestMarker(),
     };
     void this.session.runEnterMap();
   }
@@ -170,6 +177,7 @@ export class GameScene extends Phaser.Scene {
     this.entitySprites.forEach((s) => s.destroy());
     this.entitySprites.clear();
     this.clearPrompt();
+    this.clearQuestMarker();
     this.player?.destroy();
 
     const { pack, state } = this.session;
@@ -185,6 +193,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setDepth(10);
 
     this.rebuildEntities();
+    this.refreshQuestMarker();
     const zoom = this.fitZoom(map.width, map.height);
     this.cameras.main.setZoom(zoom);
     this.cameras.main.centerOn(this.player.x, this.player.y);
@@ -260,6 +269,61 @@ export class GameScene extends Phaser.Scene {
     this.promptTween = undefined;
     this.prompt?.destroy();
     this.prompt = undefined;
+  }
+
+  clearQuestMarker() {
+    this.questMarkerTween?.stop();
+    this.questMarkerTween = undefined;
+    this.questMarker?.destroy();
+    this.questMarker = undefined;
+    this.questLabel?.destroy();
+    this.questLabel = undefined;
+  }
+
+  refreshQuestMarker() {
+    const { pack, state } = this.session;
+    const onVillage = state.mapId === "village";
+    const gate = visibleEntities(pack, state, "village").find((e) => e.id === "dungeon_gate");
+    const show = onVillage && !!gate && !state.flags.crypt_unlocked;
+    if (!show) {
+      this.clearQuestMarker();
+      return;
+    }
+    const map = getMap(pack, state.mapId);
+    const pos = entityPos(state, map, gate!);
+    const x = pos.x * TILE_SIZE + TILE_SIZE / 2;
+    const y = pos.y * TILE_SIZE + TILE_SIZE / 2 - 6;
+    if (!this.questMarker) {
+      this.questMarker = this.add.image(x, y, "builtin:quest");
+      this.questMarker.setDisplaySize(22, 22);
+      this.questMarker.setDepth(18);
+      this.questMarkerTween = this.tweens.add({
+        targets: this.questMarker,
+        alpha: { from: 0.55, to: 1 },
+        scale: { from: 0.92, to: 1.08 },
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+      this.questLabel = this.add.text(x, y + 14, this.questLabelText(), {
+        fontFamily: "Source Sans 3, sans-serif",
+        fontSize: "11px",
+        color: "#d4b15a",
+        stroke: "#1a1208",
+        strokeThickness: 3,
+      });
+      this.questLabel.setOrigin(0.5, 0);
+      this.questLabel.setDepth(18);
+    } else {
+      this.questMarker.setPosition(x, y);
+      this.questLabel?.setPosition(x, y + 14);
+      this.questLabel?.setText(this.questLabelText());
+    }
+  }
+
+  questLabelText(): string {
+    return this.session.lang === "en" ? "Crypt" : "Cripta";
   }
 
   refreshPrompts() {

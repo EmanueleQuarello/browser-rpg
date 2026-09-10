@@ -5,6 +5,7 @@
   --panel-2: #2e261e;
   --ink: #f3ead6;
   --muted: #b7a890;
+  --ink-soft: #d8ccb4;
   --gold: #d4b15a;
   --gold-dim: #8a7030;
   --danger: #c45c4a;
@@ -213,6 +214,8 @@ label {
   border-radius: 12px;
   padding: 14px;
   box-shadow: var(--shadow);
+  z-index: 30;
+  pointer-events: auto;
 }
 
 .action-btn {
@@ -292,6 +295,70 @@ label {
 
 .muted {
   color: var(--muted);
+}
+
+.landing-hint,
+.play-hint {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  max-width: 42rem;
+}
+
+.hud-stats {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.auth-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 0;
+  color: var(--gold);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--gold-dim);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dialogue-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  pointer-events: auto;
+  background: rgba(8, 6, 5, 0.35);
+}
+
+.dialogue-card {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  z-index: 41;
+}
+
+.toast-card {
+  z-index: 35;
 }
 
 .error {
